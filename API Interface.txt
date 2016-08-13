@@ -1,0 +1,179 @@
+###All API interfaces about the NFC Watch SDK###
+
+##MCU Part##
+#Function interfaces#
+static void BSP_NVIC_Configuration(void)															//configuration NVIC peripheral
+static void BSP_GPIO_Configuration(void)															//configuration GPIO peripheral
+void TIM4_Configuration(uint16_t delay)																//configuration TIM4 peripheral
+void TIM3_Configuration(void)																		//configuration TIM3 peripheral
+void TIM2_Int_Init(u16 arr,u16 psc)																	//configuration TIM2 peripheral
+static void BSP_USART_Configuration(void)															//configuration USARTx peripheral
+void EXTI3_Configuration(EXTITrigger_TypeDef trigger)												//configuration EXTI3 peripheral
+void EXTI15_Configuration(void)																		//configuration EXTI15 peripheral
+void DMA_Configuration(void)																		//configuration DMA peripheral
+void ADC_Configuration(void)																		//configuration ADC peripheral
+void RTC_Configuration(void)																		//configuration RTC peripheral
+void led_on(uint16_t led_pin)																		//light on 4 LED of CHG_LED | LED_R | LED_G | LED_B
+void led_off(uint16_t led_pin)																		//light off 4 LED of CHG_LED | LED_R | LED_G | LED_B
+void power_on()																						//power hold 
+void power_off()																					//power off
+void motor_on(uint16_t delay)																		//motor shake once
+void led_flicker(GPIO_TypeDef* GPIOx, uint16_t led_pin, uint32_t fre, uint8_t)						//led fliker
+int BSP_Init(void)																					//Initial all peripheral
+void GPIO_SetBits(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)											//set GPIO bit
+void GPIO_ResetBits(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)											//Clear GPIO bit
+bat_value get_bat_value(void)																		//get battery information
+void delay_ms(uint32_t dly)																			//delay
+DMSG(args...)																						//use for usart1 print
+
+##OLED Part##
+#Function interfaces#
+void OLED_ShowNum(uint8_t x,uint8_t y,uint32_t num,uint8_t len,uint8_t size);						//display a number on OLED
+void OLED_ShowString(uint8_t x,uint8_t y,const uint8_t *p, uint8_t size);							//display a string on OLED
+void OLED_ShowImage(uint8_t x,uint8_t y,uint8_t len,uint8_t wid,const uint8_t *p,uint8_t mode);		//display a image on OLED
+void OLED_ShowRect(uint8_t x, uint8_t y, uint8_t len, uint8_t wid, uint8_t mode, uint8_t clear);	//Draw rectangles
+void OLED_ShowPower(uint8_t per);																	//show power of the nfc watch
+void OLED_Init(void);																				//Initialize the OLED  
+void OLED_Clear(void);																				//clear the whole OLED 
+void OLED_All_Screen(void);																			//light up the whole OLED 
+void OLED_Refresh_Gram(void);																		//refresh the value of OLED_GRAM 
+void OLED_test(void);																				//to test if the OLED is OK
+void show_uid(uint8_t x, uint8_t y, uint8_t uid[], uint8_t uid_len);								//show uid of Mifare card in the (x, y) positon
+
+##PN532 Part##
+#Function interfaces#
+void pn532_power_on(void);																			//switch on pn532
+void pn532_hard_power_down(void);																	//hard power down the pn532
+void uartInit(void);																				//Initialization uart_pcb_t structure variable 
+int uartSend(const uint8_t *buffer, uint32_t length, int timeout);									//Send data to USART2
+void uartSendByte(uint8_t ch);																		//Send a byte of data to USART2
+uint8_t uartRxBufferRead(void);																		//Read a byte of data from the buffer.
+int uartRxBufferReadArray(uint8_t *rx, uint32_t len, int timeout);									//Read data from the buffer.
+void uartRxBufferClearFIFO(void);																	//clear the rx buffer information
+void uartRxBufferWrite(uint8_t data);																//Write data to the buffer the function is called by USART2 RX interupt function when received a byte data
+void nfc_WakeUp(void);																				//wake-up the PN532 to normal mode
+void pn532_pwr_down(void);																			//power down the PN532
+#classes#
+class PN532Interface
+{
+public:
+    virtual void begin() = 0;																							//pn532 initial
+    virtual void wakeup() = 0;																							//pn532 wake-up
+    virtual int8_t writeCommand(const uint8_t *header, uint8_t hlen, const uint8_t *body = 0, uint8_t blen = 0) = 0;	//write a command and check ack
+    virtual int16_t readResponse(uint8_t buf[], uint8_t len, uint16_t timeout = 1000) = 0;								//read the response of a command, strip prefix and suffix
+};
+
+class PN532_HSU : public PN532Interface {
+public:
+    PN532_HSU();	
+    void begin();																										//pn532 initial
+	void wakeup();																										//pn532 wake-up
+	virtual int8_t writeCommand(const uint8_t *header, uint8_t hlen, const uint8_t *body = 0, uint8_t blen = 0);		//Write command to PN532
+    int16_t readResponse(uint8_t buf[], uint8_t len, uint16_t timeout);    												//Read response from PN532
+private:   
+    uint8_t command;    
+    int8_t readAckFrame();    
+    int8_t receive(uint8_t *buf, int len, uint16_t timeout=PN532_HSU_READ_TIMEOUT);
+};
+
+class PN532
+{
+public:
+    PN532(PN532Interface &interface);
+
+    void begin(void);																														//Setups the HW
+    bool SAMConfig(void);																													//Configures the SAM (Secure Access Module)
+    uint32_t getFirmwareVersion(void);																										//Checks the firmware version of the PN5xx chip
+    bool writeGPIO(uint8_t pinstate);																										//Writes an 8-bit value that sets the state of the PN532's GPIO pins
+    uint8_t readGPIO(void);																													//Reads the state of the PN532's GPIO pins
+    bool setPassiveActivationRetries(uint8_t maxRetries);																					//Sets the MxRtyPassiveActivation uint8_t of the RFConfiguration register
+    int8_t tgInitAsTarget(uint16_t timeout = 0);																							//Init PN532 as a target
+    int8_t tgInitAsTarget(const uint8_t* command, const uint8_t len, const uint16_t timeout = 0);											//called by tgInitAsTarget(timeout)
+    int16_t tgGetData(uint8_t *buf, uint8_t len);																							//Target get data from Initiator
+    bool tgSetData(const uint8_t *header, uint8_t hlen, const uint8_t *body = 0, uint8_t blen = 0);											//Target send data to Initiator
+    int16_t inRelease(const uint8_t relevantTarget = 0);
+    bool inListPassiveTarget();																												//'InLists' a passive target.
+    bool readPassiveTargetID(uint8_t cardbaudrate, uint8_t *uid, uint8_t *uidLength, uint16_t timeout = 1000);								//Waits for an ISO14443A target to enter the field
+	bool inDataExchange(uint8_t *send, uint8_t sendLength, uint8_t *response, uint8_t *responseLength);										//Exchanges an APDU with the currently inlisted peer
+    bool mifareclassic_IsFirstBlock (uint32_t uiBlock);																						//Indicates whether the specified block number is the first block
+    bool mifareclassic_IsTrailerBlock (uint32_t uiBlock);																					//Indicates whether the specified block number is the sector trailer
+    uint8_t mifareclassic_AuthenticateBlock (uint8_t *uid, uint8_t uidLen, uint32_t blockNumber, uint8_t keyNumber, uint8_t *keyData);		//Tries to authenticate a block of memory on a MIFARE card
+	uint8_t mifareclassic_ReadDataBlock (uint8_t blockNumber, uint8_t *data);																//Tries to read an entire 16-bytes data block at the specified block address.
+    uint8_t mifareclassic_WriteDataBlock (uint8_t blockNumber, uint8_t *data);																//Tries to write an entire 16-bytes data block at the specified block address
+    uint8_t mifareclassic_FormatNDEF (void);																								//Formats a Mifare Classic card to store NDEF Records
+    uint8_t mifareclassic_WriteNDEFURI (uint8_t sectorNumber, uint8_t uriIdentifier, const char *url);										//Writes an NDEF URI Record to the specified sector (1..15)
+    uint8_t mifareultralight_ReadPage (uint8_t page, uint8_t *buffer);																		//Tries to read an entire 4-bytes page at the specified address.
+    uint8_t mifareultralight_WritePage (uint8_t page, uint8_t *buffer);																		//Tries to write an entire 4-bytes data buffer at the specified page address.
+    static void PrintHex(const uint8_t *data, const uint32_t numBytes);																		//Prints a hexadecimal value in plain characters
+    static void PrintHexChar(const uint8_t *pbtData, const uint32_t numBytes);																//Prints a hexadecimal value in plain characters
+
+    uint8_t *getBuffer(uint8_t *len) {
+        *len = sizeof(pn532_packetbuffer) - 4;
+        return pn532_packetbuffer;
+    };
+private:
+    uint8_t _uid[7];  // ISO14443A uid
+    uint8_t _uidLen;  // uid len
+    uint8_t _key[6];  // Mifare Classic key
+    uint8_t inListedTag; // Tg number of inlisted tag.
+    uint8_t pn532_packetbuffer[64];
+    PN532Interface *_interface;
+};
+
+class MACLink {
+public:
+    MACLink(PN532Interface &interface) // pn532(interface) {};
+    int8_t activateAsTarget(uint16_t timeout = 0);															//Activate PN532 as a target
+    bool write(const uint8_t *header, uint8_t hlen, const uint8_t *body = 0, uint8_t blen = 0);				//write a PDU packet, the packet should be less than (255 - 2) bytes
+    int16_t read(uint8_t *buf, uint8_t len);																//read a PDU packet, the packet will be less than (255 - 2) bytes
+    uint8_t *getHeaderBuffer(uint8_t *len) {
+        return pn532.getBuffer(len);
+    };    
+private:
+    PN532 pn532;
+};
+
+class LLCP {
+public:
+	LLCP(PN532Interface &interface) // link(interface) {
+        headerBuf = link.getHeaderBuffer(&headerBufLen);
+        ns = 0;
+        nr = 0;
+	};
+	int8_t activate(uint16_t timeout = 0);																	//Actiave PN532 as a target													
+    int8_t waitForConnection(uint16_t timeout = LLCP_DEFAULT_TIMEOUT);
+    int8_t waitForDisconnection(uint16_t timeout = LLCP_DEFAULT_TIMEOUT);
+    int8_t connect(uint16_t timeout = LLCP_DEFAULT_TIMEOUT);
+    int8_t disconnect(uint16_t timeout = LLCP_DEFAULT_TIMEOUT);
+    bool write(const uint8_t *header, uint8_t hlen, const uint8_t *body = 0, uint8_t blen = 0);				//write a packet, the packet should be less than (255 - 2) bytes
+    int16_t read(uint8_t *buf, uint8_t len);																//read a  packet, the packet will be less than (255 - 2) bytes
+    uint8_t *getHeaderBuffer(uint8_t *len) {
+        uint8_t *buf = link.getHeaderBuffer(len);
+        len -= 3;       // I PDU header has 3 bytes
+        return buf;
+    };
+private:
+	MACLink link;
+    uint8_t mode;
+	uint8_t ssap;
+	uint8_t dsap;
+    uint8_t *headerBuf;
+    uint8_t headerBufLen;
+    uint8_t ns;         // Number of I PDU Sent
+    uint8_t nr;         // Number of I PDU Received
+
+	static uint8_t SYMM_PDU[2];
+};
+
+class SNEP {
+public:
+	SNEP(PN532Interface &interface) // llcp(interface) {
+		headerBuf = llcp.getHeaderBuffer(&headerBufLen);
+	};
+    int8_t write(const uint8_t *buf, uint8_t len, uint16_t timeout = 0);									//write a SNEP packet, the packet should be less than (255 - 2 - 3) bytes
+    int16_t read(uint8_t *buf, uint8_t len, uint16_t timeout = 0);											//read a SNEP packet, the packet will be less than (255 - 2 - 3) bytes
+private:
+	LLCP llcp;
+	uint8_t *headerBuf;
+	uint8_t headerBufLen;
+};
